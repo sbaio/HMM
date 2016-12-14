@@ -93,7 +93,7 @@ def logbeta(U,A,pi,mu,sigma):
 def smoothing(U, A, pi, mu, sigma):
 
 	log_nom = logbeta(U, A, pi, mu, sigma) + logalpha(U, A, pi, mu, sigma)
-	(n,d) = log_nom.shape
+	(n,K) = log_nom.shape
 	a = log_nom-np.max(log_nom,axis=1).reshape((n,1))
 	log_denom = np.max(log_nom,axis=1) + np.log(np.sum(np.exp(a),axis=1))
 
