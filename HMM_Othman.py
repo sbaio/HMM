@@ -6,8 +6,8 @@ from scipy.stats import multivariate_normal
 from scipy.misc import logsumexp
 
 #import the data files
-data = np.loadtxt('../classification_data_HWK3/EMGaussian.data')
-test = np.loadtxt('../classification_data_HWK3/EMGaussian.test')
+data = np.loadtxt('data/EMGaussian.data')
+test = np.loadtxt('data/EMGaussian.test')
 
 #center the data
 train = preprocessing.scale(data)
