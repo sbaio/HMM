@@ -42,8 +42,6 @@ def logalpha(U, A, pi, mu, sigma):
             a = logalpha[t-1,:] + np.log(A[k,:])
 
             mvnU = multivariate_normal.pdf(U[t,:], mean=mu[k,:], cov=sigma[k])
-            if k ==0:
-                print np.log(mvnU) + np.max(a) + logsumexp(a-np.max(a))
             logalpha[t,k] = np.log(mvnU) + np.max(a) + logsumexp(a-np.max(a))
     return logalpha
 
@@ -133,6 +131,8 @@ pi = (1./num_classes)*np.ones(num_classes)
 
 T = 500 
 epsilon = 1
+
+alpha = logalpha(V,A,pi,mus,sigmas)
 
 #log_likelihood
 

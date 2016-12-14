@@ -56,7 +56,7 @@ def emgaussian(X, K, max_iterations=1000, tolerance=0.0000000001):
     pis = 1.0 / K * np.ones((K, 1))
 
     for i in range(max_iterations):
-        print 'iteration ', i
+        #print 'iteration ', i
         logtau_unnormalized = np.zeros((N, K))
         for k in range(K):
             invSigma = np.linalg.inv(sigmas[k])
@@ -69,7 +69,7 @@ def emgaussian(X, K, max_iterations=1000, tolerance=0.0000000001):
         loglik = (- np.sum(logtau.reshape(-1)*tau.reshape(-1) ) + np.sum(tau.reshape(-1)*logtau_unnormalized.reshape(-1))) / N
         if loglik < loglikold + tolerance: break
         loglikold = loglik
-        print 'log-likelihood: ', loglikold
+        #print 'log-likelihood: ', loglikold
 
         for k in range(K):
             tau_k = np.tile(tau[:, k].reshape((N, 1)), (1, d))
