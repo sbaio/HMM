@@ -7,7 +7,6 @@ from scipy.misc import logsumexp
 import em_gauss
 
 import matplotlib.pyplot as plt
-plt.style.use("ggplot")
 
 def logsumexp(x):
     return np.log(np.sum(np.exp(x)))
@@ -113,6 +112,7 @@ def joint_prob(logbeta, logalpha, U, mu, sigma):
     return proba
 
 # Plotting parameters
+plt.style.use("ggplot")
 all_colors = [parameter['color'] for parameter in plt.rcParams['axes.prop_cycle']]
 
 
