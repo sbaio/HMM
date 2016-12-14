@@ -115,45 +115,51 @@ def joint_prob(logbeta, logalpha, U, mu, sigma):
 # The initial parameters are given using the EM-gaussian algorithm
 def em_hmm(U, K, A, pis, mus, sigmas, max_iterations=1000, tolerance=0.000000000):
     (n,d) = U.shape
+    old_expected_lklhood = -np.inf
     for step in range(max_iterations):
         # E - step
-        logalpha = logalpha(V,A,pis,mus,sigmas)
-        logbeta = logbeta(V, A, pis, mus, sigmas)
+        alpha = logalpha(U,A,pis,mus,sigmas)
+        beta = logbeta(U, A, pis, mus, sigmas)
 
-        proba_smooting = smoothing(logbeta, logalpha)
-        joint_proba = joint_prob(logbeta, logalpha, U, mus, sigmas)
+        tau = smoothing(beta, alpha)
+        tau_transition = joint_prob(beta, logalpha, U, mus, sigmas)
         # At each t
-        # the rows of joint_proba[t,:,:] are for q_t+1
+        # the rows of tau_transition[t,:,:] are for q_t+1
         # the columns are for q_t
 
+        # Expected complete log-likelihood
+        expected_lklhood = np.sum(tau[0,:]*np.log(pis))
+        for t in range(n):
+            expected_lklhood += np.sum(tau_transition[t,:,:]*A)
+            for i in range(K):
+                mvnU = multivariate_normal.pdf(U[t, :], mean=mus[i, :], cov=sigmas[i])
+                expected_lklhood += tau[t,i]*np.log(mvnU)
+        print 'step ', step, ' ', expected_lklhood
+        if np.abs(expected_lklhood - old_expected_lklhood) < tolerance:
+            break
+        old_expected_lklhood = expected_lklhood
+
         # M - step
-        pis = smoothing(logbeta, logalpha)
-        logsmoothing = np.log(proba_smooting)
-        logjoint_proba = np.log(joint_proba)
+        # We update pi
+        pis = tau[0,:]
+        sum_tau = np.sum(tau, axis=0)
+        sum_tau_transition = np.sum(tau_transition, axis=0)
+        # We update A
         for i in range(K): #i loops for q_t+1
-            logsmoothing_i = logsmoothing[:, i]
-            sum_smoothing_i = np.max(logsmoothing_i) + logsumexp(logsmoothing_i-np.max(logsmoothing_i))
             for j in range(K): #j loops for q_t
-                logjoint_proba_ij = logsmoothing[:, i, j]
-                sum_joint_proba_ij = np.max(logjoint_proba_ij) + logsumexp(logjoint_proba_ij - np.max(logjoint_proba_ij))
-                A[i,j] = sum_joint_proba_ij - sum_smoothing_i
-                A[i,j] = np.exp(A[i,j])
-            # sum of p(q_t | u)*u_t
-            proba_u = logsmoothing_i + np.log(U)
-            sum_proba = np.zeros(proba_u.shape)
-            sum_proba[:,0] = np.max(proba_u[:,0]) + logsumexp(proba_u[:,0] - np.max(proba_u[:,0]))
-            sum_proba[:,1] = np.max(proba_u[:,1]) + logsumexp(proba_u[:,1] - np.max(proba_u[:,1]))
-            mus[i,:] = sum_proba - sum_smoothing_i
-            mus[i,:] = np.exp(mus[i,:])
+                A[i,j] = sum_tau_transition[i,j] / sum_tau[j]
+            # We update mus
+            tau_u = np.dot(tau[i].T,U)
+            mus[i,:] = tau_u / sum_tau[i]
+            # We update sigmas
             U_centered = U - mus[i,:]
-            sigmas[i] = 0
+            sigmas[i] = np.zeros((d,d))
             for t in range(T):
                 covariance = np.dot(U_centered.T, U_centered)
-                covariance = np.log(covariance)
-                covariance = covariance + logsmoothing_i[t]
-                sigmas[i] = sigmas[i] + np.exp(covariance)
-            sigmas[i] = np.log[sigmas[i]] - sum_smoothing_i
-            sigmas[i] = np.exp(sigmas[i])
+                sigmas[i] += tau[t,i]*covariance
+            sigmas[i] = sigmas[i] / sum_tau[i]
+
+    return A, pis, mus, sigmas
 
 
 
