@@ -93,9 +93,9 @@ def logbeta(U,A,pi,mu,sigma):
 
 
 ##  Smoothing p(qt|u1,...,uT) returns matrix of size T x K .. proba that ut belongs to class k, given all observations
-def smoothing(U, A, pi, mu, sigma):
+def smoothing(logbeta, logalpha):
 
-	log_nom = logbeta(U, A, pi, mu, sigma) + logalpha(U, A, pi, mu, sigma)
+	log_nom = logbeta + logalpha
 	(n,K) = log_nom.shape
 	a = log_nom-np.max(log_nom,axis=1).reshape((n,1))
 	log_denom = np.max(log_nom,axis=1) + np.log(np.sum(np.exp(a),axis=1))
@@ -103,10 +103,10 @@ def smoothing(U, A, pi, mu, sigma):
 	return np.exp(log_nom-log_denom.reshape((n,1)))
 
 # Joint Probability (p(qt,qt+1|u1,...,uT))
-def joint_prob(U, A, pi, mu, sigma, time):
+def joint_prob(logbeta, logalpha, U, mu, sigma):
 
-	X = logalpha(U, A, pi, mu, sigma)
-	Y = logbeta(U, A, pi, mu, sigma)
+	X = logalpha
+	Y = logbeta
 	(n,K) = X.shape
 
 	proba = np.zeros((n-1,K,K))
