@@ -75,9 +75,9 @@ def logbeta(U,A,pi,mu,sigma):
 
 
 ##  Smoothing p(qt|u1,...,uT) returns matrix of size T x K .. proba that ut belongs to class k, given all observations
-def smoothing(logbeta, logalpha):
+def smoothing(beta, alpha):
 
-    log_nom = logbeta + logalpha
+    log_nom = beta + alpha
     (n,K) = log_nom.shape
     a = log_nom-np.max(log_nom,axis=1).reshape((n,1))
     log_denom = np.max(log_nom,axis=1) + np.log(np.sum(np.exp(a),axis=1))
@@ -85,10 +85,10 @@ def smoothing(logbeta, logalpha):
     return np.exp(log_nom-log_denom.reshape((n,1)))
 
 # Joint Probability (p(qt,qt+1|u1,...,uT))
-def joint_prob(logbeta, logalpha, U, mu, sigma):
+def joint_prob(beta, alpha, U, mu, sigma):
 
-    X = logalpha
-    Y = logbeta
+    X = alpha
+    Y = beta
     (n,K) = X.shape
 
     proba = np.zeros((n-1,K,K))
@@ -113,8 +113,8 @@ def joint_prob(logbeta, logalpha, U, mu, sigma):
 
 # We implement EM for HMM
 # The initial parameters are given using the EM-gaussian algorithm
-def em_hmm(U, K, A, pis, mus, sigmas, max_iterations=1000, tolerance=0.000000000):
-    (n,d) = U.shape
+def em_hmm(U, K, A, pis, mus, sigmas, max_iterations=1000, tolerance=0.0000000001):
+    (T,d) = U.shape
     old_expected_lklhood = -np.inf
     for step in range(max_iterations):
         # E - step
@@ -122,15 +122,16 @@ def em_hmm(U, K, A, pis, mus, sigmas, max_iterations=1000, tolerance=0.000000000
         beta = logbeta(U, A, pis, mus, sigmas)
 
         tau = smoothing(beta, alpha)
-        tau_transition = joint_prob(beta, logalpha, U, mus, sigmas)
+        tau_transition = joint_prob(beta, alpha, U, mus, sigmas)
         # At each t
         # the rows of tau_transition[t,:,:] are for q_t+1
         # the columns are for q_t
 
         # Expected complete log-likelihood
         expected_lklhood = np.sum(tau[0,:]*np.log(pis))
-        for t in range(n):
-            expected_lklhood += np.sum(tau_transition[t,:,:]*A)
+        for t in range(T):
+            if t < T-1:
+                expected_lklhood += np.sum(tau_transition[t,:,:]*A)
             for i in range(K):
                 mvnU = multivariate_normal.pdf(U[t, :], mean=mus[i, :], cov=sigmas[i])
                 expected_lklhood += tau[t,i]*np.log(mvnU)
@@ -142,14 +143,14 @@ def em_hmm(U, K, A, pis, mus, sigmas, max_iterations=1000, tolerance=0.000000000
         # M - step
         # We update pi
         pis = tau[0,:]
-        sum_tau = np.sum(tau, axis=0)
+        sum_tau = np.sum(tau, axis=0).reshape((K,1))
         sum_tau_transition = np.sum(tau_transition, axis=0)
         # We update A
         for i in range(K): #i loops for q_t+1
             for j in range(K): #j loops for q_t
                 A[i,j] = sum_tau_transition[i,j] / sum_tau[j]
             # We update mus
-            tau_u = np.dot(tau[i].T,U)
+            tau_u = np.dot(tau[:,i].T,U)
             mus[i,:] = tau_u / sum_tau[i]
             # We update sigmas
             U_centered = U - mus[i,:]
@@ -184,45 +185,35 @@ V = test # npoints=500 x dim=2
 
 A = np.ones((4,4))*(1./6) + (1./3)*np.diag(np.ones(4)) # initialize A with 1/2 on diagonal and 1/6 otherwise
 num_classes = 4
-pi = (1./num_classes)*np.ones(num_classes)
+pis = (1. / num_classes) * np.ones(num_classes)
 
 T = 500 
 epsilon = 1
 
 # compute alpha and beta for all test data .. after similar preprocessing to train data
-logalpha = logalpha(V,A,pi,mus,sigmas)
-logbeta = logbeta(V,A,pi,mus,sigmas)
+alpha = logalpha(V, A, pis, mus, sigmas)
+beta = logbeta(V, A, pis, mus, sigmas)
 
 # smoothing proba
-proba_smooting = smoothing(logbeta, logalpha)
+proba_smooting = smoothing(beta, alpha)
 
 # joint proba
-joint_proba = joint_prob(logbeta, logalpha, U, mus, sigmas)
+joint_proba = joint_prob(beta, alpha, U, mus, sigmas)
 
 # plotting
 proba_smooting_sample = proba_smooting[:100,:]
 
-f, axarr = plt.subplots(2, 2)
+# f, axarr = plt.subplots(2, 2)
+#
+# for i in range(2):
+#     for j in range(2):
+#         k = i + 2*j
+#         axarr[i, j].plot(proba_smooting_sample[:, k], color=all_colors[k], linewidth=2)
+#         axarr[i, j].set_title("Class "+str(k+1))
+# plt.suptitle("Smoothing: p(q_t|u_1,...,u_T) for 100 first values", size=24)
+# plt.show()
 
-for i in range(2):
-    for j in range(2):
-        k = i + 2*j
-        axarr[i, j].plot(proba_smooting_sample[:, k], color=all_colors[k], linewidth=2)
-        axarr[i, j].set_title("Class "+str(k+1))
-plt.suptitle("Smoothing: p(q_t|u_1,...,u_T) for 100 first values", size=24)
-plt.show()
-
-#log_likelihood
-
-#pi_new
-
-#mu_new
-
-#sigma_new
-
-#A_new
-
-#EM_HMM
+A, pis, mus, sigmas = em_hmm(V,num_classes,A,pis,mus,sigmas)
 
 #viterbi
 
