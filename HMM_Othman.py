@@ -120,7 +120,7 @@ def joint_prob(logbeta, logalpha, U, mu, sigma):
 
 		# i loops over values taken by z(t+1)
 		for i in range(1,K):
-			mvnU = multivariate_normal.pdf(U[t+1,:], mean=mu[[i]], cov=sigma[[i]])
+			mvnU = multivariate_normal.pdf(U[t+1,:], mean=mu[i,:], cov=sigma[i])
 			# j loops over values taken by z(t)
 			for j in range(1,K):
 				log_prob_t[i,j] = X[t,j] + Y[t+1,i] + np.log(A[i,j]) + np.log(mvnU) - log_denom_t
