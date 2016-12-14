@@ -111,6 +111,51 @@ def joint_prob(logbeta, logalpha, U, mu, sigma):
 
     return proba
 
+# We implement EM for HMM
+# The initial parameters are given using the EM-gaussian algorithm
+def em_hmm(U, K, A, pis, mus, sigmas, max_iterations=1000, tolerance=0.000000000):
+    (n,d) = U.shape
+    for step in range(max_iterations):
+        # E - step
+        logalpha = logalpha(V,A,pis,mus,sigmas)
+        logbeta = logbeta(V, A, pis, mus, sigmas)
+
+        proba_smooting = smoothing(logbeta, logalpha)
+        joint_proba = joint_prob(logbeta, logalpha, U, mus, sigmas)
+        # At each t
+        # the rows of joint_proba[t,:,:] are for q_t+1
+        # the columns are for q_t
+
+        # M - step
+        pis = smoothing(logbeta, logalpha)
+        logsmoothing = np.log(proba_smooting)
+        logjoint_proba = np.log(joint_proba)
+        for i in range(K): #i loops for q_t+1
+            logsmoothing_i = logsmoothing[:, i]
+            sum_smoothing_i = np.max(logsmoothing_i) + logsumexp(logsmoothing_i-np.max(logsmoothing_i))
+            for j in range(K): #j loops for q_t
+                logjoint_proba_ij = logsmoothing[:, i, j]
+                sum_joint_proba_ij = np.max(logjoint_proba_ij) + logsumexp(logjoint_proba_ij - np.max(logjoint_proba_ij))
+                A[i,j] = sum_joint_proba_ij - sum_smoothing_i
+                A[i,j] = np.exp(A[i,j])
+            # sum of p(q_t | u)*u_t
+            proba_u = logsmoothing_i + np.log(U)
+            sum_proba = np.zeros(proba_u.shape)
+            sum_proba[:,0] = np.max(proba_u[:,0]) + logsumexp(proba_u[:,0] - np.max(proba_u[:,0]))
+            sum_proba[:,1] = np.max(proba_u[:,1]) + logsumexp(proba_u[:,1] - np.max(proba_u[:,1]))
+            mus[i,:] = sum_proba - sum_smoothing_i
+            mus[i,:] = np.exp(mus[i,:])
+            U_centered = U - mus[i,:]
+            sigmas[i] = 0
+            for t in range(T):
+                covariance = np.dot(U_centered.T, U_centered)
+                covariance = np.log(covariance)
+                covariance = covariance + logsmoothing_i[t]
+                sigmas[i] = sigmas[i] + np.exp(covariance)
+            sigmas[i] = np.log[sigmas[i]] - sum_smoothing_i
+
+
+
 # Plotting parameters
 plt.style.use("ggplot")
 all_colors = [parameter['color'] for parameter in plt.rcParams['axes.prop_cycle']]
@@ -140,18 +185,23 @@ epsilon = 1
 # compute alpha and beta for all test data .. after similar preprocessing to train data
 logalpha = logalpha(V,A,pi,mus,sigmas)
 logbeta = logbeta(V,A,pi,mus,sigmas)
+
 # smoothing proba
 proba_smooting = smoothing(logbeta, logalpha)
 
+# joint proba
+joint_proba = joint_prob(logbeta, logalpha, U, mus, sigmas)
+
+# plotting
 proba_smooting_sample = proba_smooting[:100,:]
 
 f, axarr = plt.subplots(2, 2)
 
 for i in range(2):
-	for j in range(2):
-		k = i + 2*j
-		axarr[i, j].plot(proba_smooting_sample[:, k], color=all_colors[k], linewidth=2)
-		axarr[i, j].set_title("Class "+str(k+1))
+    for j in range(2):
+        k = i + 2*j
+        axarr[i, j].plot(proba_smooting_sample[:, k], color=all_colors[k], linewidth=2)
+        axarr[i, j].set_title("Class "+str(k+1))
 plt.suptitle("Smoothing: p(q_t|u_1,...,u_T) for 100 first values", size=24)
 plt.show()
 
