@@ -4,6 +4,7 @@ import numpy as np
 from sklearn import preprocessing
 from scipy.stats import multivariate_normal
 from scipy.misc import logsumexp
+import em_gauss
 
 #import the data files
 data = np.loadtxt('data/EMGaussian.data')
@@ -15,6 +16,8 @@ test = preprocessing.scale(test)
 
 U = train # npoints=500 x dim=2
 V = test # npoints=500 x dim=2
+
+(a,b,c,d,e) = em_gauss.emgaussian(U,4)
 
 A = np.ones((4,4))*(1./6) + (1./3)*np.diag(np.ones(4)) # initialize A with 1/2 on diagonal and 1/6 otherwise
 num_classes = 4
