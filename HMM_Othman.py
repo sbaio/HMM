@@ -1,4 +1,4 @@
-#!/Users/Sbaio/anaconda/bin/python
+# encoding: utf-8
 
 import numpy as np
 from sklearn import preprocessing
@@ -36,6 +36,9 @@ def sum_lse(x):
 # Input : U the data, A the transition matrix, pi the initial probability distribution, mu & sigma the parameters of the normal
 # Output: The matrix of the log alpha
 
+# mu is a matrix of K rows and 2 columns
+# sigma is a list of K covariance matrices
+
 def logalpha(U, A, pi, mu, sigma):
 	n = len(U) # number of rows , data points
 	K = len(pi) # number of classes
@@ -43,7 +46,7 @@ def logalpha(U, A, pi, mu, sigma):
 
 	# first alpha is computed with initial proba distribution
 	for k in range(0,K):
-		mvnU = multivariate_normal.pdf(U[0,:], mean=mu[[k]], cov=sigma[[k]])
+		mvnU = multivariate_normal.pdf(U[0,:], mean=mu[k,:], cov=sigma[k])
 		logalpha[0,k] = np.log(pi[k]) + np.log(mvnU)
 		
 	for t in range(1,n):
@@ -55,7 +58,7 @@ def logalpha(U, A, pi, mu, sigma):
 			
 			a = logalpha[t-1,:] + np.log(A[k,:])
       		
-      		mvnU = multivariate_normal.pdf(U[t,:], mean=mu[[k]], cov=sigma[[k]])
+      		mvnU = multivariate_normal.pdf(U[t,:], mean=mu[k,:], cov=sigma[k])
       		logalpha[t,k] = np.log(mvnU) + np.max(a) + logsumexp(a-np.max(a))
 	return logalpha
 
@@ -65,11 +68,11 @@ def logbeta(U,A,pi,mu,sigma):
 	K = len(pi) # number of classes
 	logbeta = np.zeros((n,K))
 
-	# The last alpha is given by the vector (1,1,1,1)
+	# The last beta is given by the vector (1,1,1,1)
 	logbeta[n-1,:] = np.log(np.ones((1,K)))
 
 	# The other are computed with the recursive formula
-	# We fill our matrix logalpha row by row
+	# We fill our matrix logbeta row by row
 	for t in range(n-2,-1,-1):
 		for k in range(0,K):
 			# We create for each k the vector a such that:
@@ -79,7 +82,7 @@ def logbeta(U,A,pi,mu,sigma):
 
 			a = np.zeros(K)
 			for i in range(0,K):
-				mvnU = multivariate_normal.pdf(U[t+1,:], mean=mu[[i]], cov=sigma[[i]])
+				mvnU = multivariate_normal.pdf(U[t+1,:], mean=mu[i,:], cov=sigma[i])
 				a[i] = logbeta[t+1,i] + np.log(A[i,k]) + np.log(mvnU)
 
 			logbeta[t,k] = np.max(a) + logsumexp(a-np.max(a))
