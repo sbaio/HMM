@@ -132,7 +132,13 @@ pi = (1./num_classes)*np.ones(num_classes)
 T = 500 
 epsilon = 1
 
-alpha = logalpha(V,A,pi,mus,sigmas)
+# compute alpha and beta for all test data .. after similar preprocessing to train data
+logalpha = logalpha(V,A,pi,mus,sigmas)
+logbeta = logbeta(V,A,pi,mus,sigmas)
+# smoothing proba
+proba_smooting = smoothing(logbeta, logalpha)
+
+
 
 #log_likelihood
 
