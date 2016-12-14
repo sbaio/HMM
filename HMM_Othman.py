@@ -153,6 +153,7 @@ def em_hmm(U, K, A, pis, mus, sigmas, max_iterations=1000, tolerance=0.000000000
                 covariance = covariance + logsmoothing_i[t]
                 sigmas[i] = sigmas[i] + np.exp(covariance)
             sigmas[i] = np.log[sigmas[i]] - sum_smoothing_i
+            sigmas[i] = np.exp(sigmas[i])
 
 
 
