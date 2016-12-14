@@ -6,6 +6,9 @@ from scipy.stats import multivariate_normal
 from scipy.misc import logsumexp
 import em_gauss
 
+import matplotlib.pyplot as plt
+plt.style.use("ggplot")
+
 def logsumexp(x):
     return np.log(np.sum(np.exp(x)))
 
@@ -109,6 +112,8 @@ def joint_prob(logbeta, logalpha, U, mu, sigma):
 
     return proba
 
+# Plotting parameters
+all_colors = [parameter['color'] for parameter in plt.rcParams['axes.prop_cycle']]
 
 
 #import the data files
@@ -138,7 +143,17 @@ logbeta = logbeta(V,A,pi,mus,sigmas)
 # smoothing proba
 proba_smooting = smoothing(logbeta, logalpha)
 
+proba_smooting_sample = proba_smooting[:100,:]
 
+f, axarr = plt.subplots(2, 2)
+
+for i in range(2):
+	for j in range(2):
+		k = i + 2*j
+		axarr[i, j].plot(proba_smooting_sample[:, k], color=all_colors[k], linewidth=2)
+		axarr[i, j].set_title("Class "+str(k+1))
+plt.suptitle("Smoothing: p(q_t|u_1,...,u_T) for 100 first values", size=24)
+plt.show()
 
 #log_likelihood
 
