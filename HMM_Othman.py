@@ -173,9 +173,9 @@ if __name__ == "__main__":
     test = np.loadtxt('data/EMGaussian.test')
 
     #center the data
-    # scaler = preprocessing.StandardScaler().fit(train)
-    # train = scaler.transform(train)
-    # test = scaler.transform(test)
+    scaler = preprocessing.StandardScaler().fit(train)
+    train = scaler.transform(train)
+    test = scaler.transform(test)
 
     U = train # npoints=500 x dim=2
     V = test # npoints=500 x dim=2
@@ -218,7 +218,7 @@ if __name__ == "__main__":
     plt.figure()
     plt.plot(log_likelihood, label="Train data")
     plt.plot(log_likelihood_test, label="Test data")
-    plt.title("Evolution of log_likelihood vs. iterations", size=18)
+    plt.title("Evolution of log_likelihood vs. iterations - centered", size=18)
     plt.xlabel("Iterations", size=18)
     plt.ylabel("Log-likelihood", size=18)
     plt.legend()
