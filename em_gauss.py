@@ -1,5 +1,7 @@
 # encoding: utf-8
 
+## This is an adaptation of the code furnished by Guillaume Obozinski for the EM for Gaussian mixtures from Matlab to Python
+
 import numpy as np
 import matplotlib.pyplot as plt
 plt.style.use('ggplot')
@@ -41,11 +43,25 @@ def kmeans(X, K, max_iterations=1000, tolerance=0.0000000001, nrestart=10):
 def log_normalize(X):
     (N, d) = np.shape(X)
     a = np.max(X, 1).reshape((N,1))
-    f = np.tile(a + np.log(np.sum(np.exp(X - np.tile(a, (1, d))), 1).reshape((N,1))), (1, d))
-    X = X - f
+    X = X - np.tile(a + np.log(np.sum(np.exp(X - np.tile(a, (1, d))), 1).reshape((N,1))), (1, d))
     return X
 
-def emgaussian(X, K, max_iterations=1000, tolerance=0.0000000001):
+def E_step(X, K, mus, sigmas, pis):
+    (N,d) = X.shape
+    logtau_unnormalized = np.zeros((N, K))
+    for k in range(K):
+        invSigma = np.linalg.inv(sigmas[k])
+        xc = (X - np.tile(mus[k, :], (N, 1)))
+        eigvalues = np.linalg.eig(sigmas[k])[0]
+        logtau_unnormalized[:, k] = - 0.5 * np.sum(np.dot(xc, invSigma) * xc, 1) - 0.5 * np.sum(
+            np.log(eigvalues)) - 0.5 * d * np.log(2 * np.pi) + np.log(pis[k])
+    logtau = log_normalize(logtau_unnormalized)
+    tau = np.exp(logtau)
+    # unnormalized log_likelihood
+    loglik = (- np.sum(logtau.reshape(-1) * tau.reshape(-1)) + np.sum(tau.reshape(-1) * logtau_unnormalized.reshape(-1)))
+    return tau, loglik
+
+def em_gaussian(X, X_test, K, max_iterations=1000, tolerance=0.0000000001):
     (N, d) = np.shape(X)
     loglikold = -np.inf
     mu_kmeans, z_kmeans = kmeans(X, K)
@@ -57,19 +73,12 @@ def emgaussian(X, K, max_iterations=1000, tolerance=0.0000000001):
 
     for i in range(max_iterations):
         #print 'iteration ', i
-        logtau_unnormalized = np.zeros((N, K))
-        for k in range(K):
-            invSigma = np.linalg.inv(sigmas[k])
-            xc = (X - np.tile(mus[k,:], (N, 1)))
-            eigvalues = np.linalg.eig(sigmas[k])[0]
-            logtau_unnormalized[:, k] = - 0.5 * np.sum(np.dot(xc,invSigma) * xc, 1) - 0.5 * np.sum(np.log( eigvalues)) - 0.5 * d * np.log(2 * np.pi) + np.log(pis[k])
-        logtau = log_normalize(logtau_unnormalized)
-        tau = np.exp(logtau)
-
-        loglik = (- np.sum(logtau.reshape(-1)*tau.reshape(-1) ) + np.sum(tau.reshape(-1)*logtau_unnormalized.reshape(-1))) / N
+        tau, loglik = E_step(X, K, mus, sigmas, pis)
+        # for the test data
+        tau_test, loglik_test = E_step(X_test, K, mus, sigmas, pis)
         if loglik < loglikold + tolerance: break
         loglikold = loglik
-        #print 'log-likelihood: ', loglikold
+        # print 'log-likelihood: ', loglikold
 
         for k in range(K):
             tau_k = np.tile(tau[:, k].reshape((N, 1)), (1, d))
@@ -78,18 +87,21 @@ def emgaussian(X, K, max_iterations=1000, tolerance=0.0000000001):
             temp = X - np.tile(mus[k,:], (N, 1))
             sigmas[k] = 1.0 / np.sum(tau[:, k]) * np.dot(np.transpose(temp), (tau_k * temp))
 
-    return pis, mus, sigmas, logtau, tau
+    return pis, mus, sigmas, loglik, loglik_test, tau
 
 
 if __name__ == "__main__":
     K = 4
     X = np.loadtxt('data/EMGaussian.data')
+    X_test = np.loadtxt('data/EMGaussian.test')
 
     # mu_kmeans, z_kmeans = kmeans(X, K)
     # plt.scatter(X[:,0], X[:,1], c=z_kmeans)
     # plt.show()
 
-    pis, mus, sigmas, log_tau, tau = emgaussian(X, K)
+    pis, mus, sigmas, loglik, loglik_test, tau = em_gaussian(X, X_test, K)
+    print loglik
+    print loglik_test
     z_em = np.argmax(tau,1)
     plt.scatter(X[:, 0], X[:, 1], c=z_em)
     plt.show()

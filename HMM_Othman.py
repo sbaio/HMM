@@ -105,9 +105,14 @@ def compute_joint_prob(logbeta, logalpha, U, mu, sigma):
 
 # We implement EM for HMM
 # The initial parameters are given using the EM-gaussian algorithm
-def em_hmm(U, K, A, pis, mus, sigmas, max_iterations=1000, tolerance=0.0000000001):
+# U are the train data
+# V are the test data
+# We learn from U and we test on V
+def em_hmm(U, V, K, A, pis, mus, sigmas, max_iterations=1000, tolerance=10e-6):
     (T,d) = U.shape
     old_log_likelihood = -np.inf
+    log_likelihood = []
+    log_likelihood_test = []
     for step in range(max_iterations):
         # E - step
         logalpha = compute_logalpha(U, A, pis, mus, sigmas)
@@ -120,11 +125,16 @@ def em_hmm(U, K, A, pis, mus, sigmas, max_iterations=1000, tolerance=0.000000000
         # the columns are for q_t
 
         # log-likelihood
-        log_likelihood = compute_log_likelihood(logbeta, logalpha)
-        print 'step ', step, ' ', log_likelihood
-        if np.abs(log_likelihood - old_log_likelihood) < tolerance:
+        log_likelihood.append(compute_log_likelihood(logbeta, logalpha))
+        # print 'step ', step, ' ', log_likelihood[-1]
+        # We compute the log_likelihood for the test data
+        logalpha_test = compute_logalpha(V, A, pis, mus, sigmas)
+        logbeta_test = compute_logbeta(V, A, pis, mus, sigmas)
+        log_likelihood_test.append(compute_log_likelihood(logbeta_test, logalpha_test))
+
+        if np.abs(log_likelihood[-1] - old_log_likelihood) < tolerance:
             break
-        old_log_likelihood = log_likelihood
+        old_log_likelihood = log_likelihood[-1]
 
         # M - step
         # We update pi
@@ -147,66 +157,76 @@ def em_hmm(U, K, A, pis, mus, sigmas, max_iterations=1000, tolerance=0.000000000
                 sigmas[i] += tau[t,i]*covariance
             sigmas[i] = sigmas[i] / sum_tau[i]
 
-    return A, pis, mus, sigmas, tau
+    return A, pis, mus, sigmas, tau, log_likelihood, log_likelihood_test
 
 ################################ MAIN ##############################################
 
-# Plotting parameters
-plt.style.use("ggplot")
-all_colors = [parameter['color'] for parameter in plt.rcParams['axes.prop_cycle']]
+if __name__ == "__main__":
+
+    # Plotting parameters
+    plt.style.use("ggplot")
+    all_colors = [parameter['color'] for parameter in plt.rcParams['axes.prop_cycle']]
 
 
-#import the data files
-train = np.loadtxt('data/EMGaussian.data')
-test = np.loadtxt('data/EMGaussian.test')
+    #import the data files
+    train = np.loadtxt('data/EMGaussian.data')
+    test = np.loadtxt('data/EMGaussian.test')
 
-#center the data
-scaler = preprocessing.StandardScaler().fit(train)
-train = scaler.transform(train)
-test = scaler.transform(test)
+    #center the data
+    # scaler = preprocessing.StandardScaler().fit(train)
+    # train = scaler.transform(train)
+    # test = scaler.transform(test)
 
-U = train # npoints=500 x dim=2
-V = test # npoints=500 x dim=2
+    U = train # npoints=500 x dim=2
+    V = test # npoints=500 x dim=2
+    K = 4
 
-(_,mus,sigmas,_,_) = em_gauss.emgaussian(U,4)
+    (_,mus,sigmas,log_likelihood_gauss,log_likelihood_gauss_test,_) = em_gauss.em_gaussian(U, V, K)
 
-A = np.ones((4,4))*(1./6) + (1./3)*np.diag(np.ones(4)) # initialize A with 1/2 on diagonal and 1/6 otherwise
-num_classes = 4
-pis = (1. / num_classes) * np.ones(num_classes)
+    A = np.ones((K,K))*(1./6) + (1./3)*np.diag(np.ones(4)) # initialize A with 1/2 on diagonal and 1/6 otherwise
+    pis = (1. / K) * np.ones(K)
 
-T = 500 
-epsilon = 1
+    T = 500
+    epsilon = 1
 
-# compute alpha and beta for all test data .. after similar preprocessing to train data
-logalpha = compute_logalpha(V, A, pis, mus, sigmas)
-logbeta = compute_logbeta(V, A, pis, mus, sigmas)
+    # compute alpha and beta for all test data .. after similar preprocessing to train data
+    logalpha = compute_logalpha(V, A, pis, mus, sigmas)
+    logbeta = compute_logbeta(V, A, pis, mus, sigmas)
 
-# smoothing proba
-proba_smooting = smoothing(logbeta, logalpha)
-# joint proba
-joint_proba = compute_joint_prob(logbeta, logalpha, U, mus, sigmas)
+    # smoothing proba
+    proba_smooting = smoothing(logbeta, logalpha)
+    # joint proba
+    joint_proba = compute_joint_prob(logbeta, logalpha, U, mus, sigmas)
 
-# plotting
-proba_smooting_sample = proba_smooting[:100,:]
+    # plotting
+    proba_smooting_sample = proba_smooting[:100,:]
 
-# f, axarr = plt.subplots(2, 2)
-#
-# for i in range(2):
-#     for j in range(2):
-#         k = i + 2*j
-#         axarr[i, j].plot(proba_smooting_sample[:, k], color=all_colors[k], linewidth=2)
-#         axarr[i, j].set_title("Class "+str(k+1))
-# plt.suptitle("Smoothing: p(q_t|u_1,...,u_T) for 100 first values", size=24)
-# plt.show()
+    f, axarr = plt.subplots(2, 2)
 
-A, pis, mus, sigmas, tau = em_hmm(U,num_classes,A,pis,mus,sigmas)
-z_em = np.argmax(tau,1)
-plt.scatter(U[:, 0], U[:, 1], c=z_em)
-plt.show()
+    for i in range(2):
+        for j in range(2):
+            k = i + 2*j
+            axarr[i, j].plot(proba_smooting_sample[:, k], color=all_colors[k], linewidth=2)
+            axarr[i, j].set_title("Class "+str(k+1))
+            axarr[i, j].set_ylim([0,1.0])
+    plt.suptitle("Smoothing: p(q_t|u_1,...,u_T) for 100 first values", size=24)
+    plt.show()
 
-#viterbi
+    A, pis, mus, sigmas, tau, log_likelihood, log_likelihood_test = em_hmm(U, V, K, A, pis, mus, sigmas)
+    print log_likelihood_gauss, log_likelihood_gauss_test
+    print log_likelihood[-1], log_likelihood_test[-1]
+    plt.figure()
+    plt.plot(log_likelihood, label="Train data")
+    plt.plot(log_likelihood_test, label="Test data")
+    plt.title("Evolution of log_likelihood vs. iterations", size=18)
+    plt.xlabel("Iterations", size=18)
+    plt.ylabel("Log-likelihood", size=18)
+    plt.legend()
+    plt.show()
 
-#classification
+    #viterbi
+
+    #classification
 
 
 
