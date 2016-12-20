@@ -159,6 +159,36 @@ def em_hmm(U, V, K, A, pis, mus, sigmas, max_iterations=1000, tolerance=10e-6):
 
     return A, pis, mus, sigmas, tau, log_likelihood, log_likelihood_test
 
+def viterbi(U,A,pi,mu,sigma):
+    (T,d) = U.shape
+    K = len(pi)
+    V = np.zeros((T,K))
+
+    # Initialise
+    for k in range(0,K):
+        mvnU = multivariate_normal.pdf(U[0,:], mean=mu[k,:], cov=sigma[k])
+        V[0,k] = np.log(pi[k]) + np.log(mvnU)
+
+    # Iterate
+    for t in range(1,T):
+        for k in range(0,K):
+            i = np.argmax(np.log(A[k,:]) + V[t-1,:])
+            mvnU = multivariate_normal.pdf(U[t,:], mean=mu[k,:], cov=sigma[k])
+            V[t,k] = np.log(mvnU) + np.log(A[k,i]) + V[t-1,i]
+
+    # Traceback
+    q = np.zeros(T)
+    q[T] = np.argmax(V[T-1,:])
+
+    for s in range(T-2,-1,-1):
+        temp = np.zeros(K)
+        for j in range(0,K):
+            temp[j] = np.log(A[q[s+1],j]) + V[s,j]
+
+        q[s] = np.argmax(temp)
+
+    return q
+
 ################################ MAIN ##############################################
 
 if __name__ == "__main__":
