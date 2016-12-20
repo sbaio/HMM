@@ -177,8 +177,8 @@ def viterbi(U,A,pi,mu,sigma):
             V[t,k] = np.log(mvnU) + np.log(A[k,i]) + V[t-1,i]
 
     # Traceback
-    q = np.zeros(T)
-    q[T] = np.argmax(V[T-1,:])
+    q = np.zeros(T,dtype=int)
+    q[T-1] = np.argmax(V[T-1,:])
 
     for s in range(T-2,-1,-1):
         temp = np.zeros(K)
@@ -254,9 +254,12 @@ if __name__ == "__main__":
     plt.legend()
     plt.show()
 
-    #viterbi
+    #viterbi - most likely sequence
+    q = viterbi(U,A,pis,mus,sigmas)
+    print q
 
-    #classification
+    #classification - qst 9 - classify test data
+    
 
 
 
