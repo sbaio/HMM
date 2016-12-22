@@ -189,20 +189,20 @@ def viterbi(U,A,pi,mu,sigma):
 
     return q
 
-################################ MAIN ##############################################
+################################ MAIN ####################################################################
 
 if __name__ == "__main__":
 
-    # Plotting parameters
+    ## Plotting parameters
     plt.style.use("ggplot")
     all_colors = [parameter['color'] for parameter in plt.rcParams['axes.prop_cycle']]
 
 
-    #import the data files
+    ## import the data files
     train = np.loadtxt('data/EMGaussian.data')
     test = np.loadtxt('data/EMGaussian.test')
 
-    #center the data
+    ## center the data
     # scaler = preprocessing.StandardScaler().fit(train)
     # train = scaler.transform(train)
     # test = scaler.transform(test)
@@ -211,6 +211,7 @@ if __name__ == "__main__":
     V = test # npoints=500 x dim=2
     K = 4
 
+    ## initialization of the parameters
     (_,mus,sigmas,log_likelihood_gauss,log_likelihood_gauss_test,_) = em_gauss.em_gaussian(U, V, K)
 
     A = np.ones((K,K))*(1./6) + (1./3)*np.diag(np.ones(4)) # initialize A with 1/2 on diagonal and 1/6 otherwise
@@ -219,32 +220,35 @@ if __name__ == "__main__":
     T = 500
     epsilon = 1
 
-    # compute alpha and beta for all test data .. after similar preprocessing to train data
+    ## compute alpha and beta for all test data .. after similar preprocessing to train data
     logalpha = compute_logalpha(V, A, pis, mus, sigmas)
     logbeta = compute_logbeta(V, A, pis, mus, sigmas)
 
-    # smoothing proba
-    proba_smooting = smoothing(logbeta, logalpha)
-    # joint proba
-    joint_proba = compute_joint_prob(logbeta, logalpha, U, mus, sigmas)
+    ## smoothing proba
+    proba_smoothing = smoothing(logbeta, logalpha)
 
-    # plotting
-    proba_smooting_sample = proba_smooting[:100,:]
+    ## joint proba
+    joint_proba = compute_joint_prob(logbeta, logalpha, V, mus, sigmas)
+
+    ## plotting
+    proba_smoothing_sample = proba_smoothing[:100, :]
 
     f, axarr = plt.subplots(2, 2)
 
     for i in range(2):
         for j in range(2):
             k = i + 2*j
-            axarr[i, j].plot(proba_smooting_sample[:, k], color=all_colors[k], linewidth=2)
+            axarr[i, j].plot(proba_smoothing_sample[:, k], color=all_colors[k], linewidth=2)
             axarr[i, j].set_title("Class "+str(k+1))
             axarr[i, j].set_ylim([0,1.0])
     plt.suptitle("Smoothing: p(q_t|u_1,...,u_T) for 100 first values", size=24)
     plt.show()
 
+    ## EM algorithm
     A, pis, mus, sigmas, tau, log_likelihood, log_likelihood_test = em_hmm(U, V, K, A, pis, mus, sigmas)
-    print log_likelihood_gauss, log_likelihood_gauss_test
-    print log_likelihood[-1], log_likelihood_test[-1]
+    print "The log_likelihoods for both GMM and HMM are:"
+    print "GMM train: ", log_likelihood_gauss, " GMM test: ", log_likelihood_gauss_test
+    print "HMM train: ", log_likelihood[-1], " HMM test: ", log_likelihood_test[-1]
     plt.figure()
     plt.plot(log_likelihood, label="Train data")
     plt.plot(log_likelihood_test, label="Test data")
@@ -254,13 +258,45 @@ if __name__ == "__main__":
     plt.legend()
     plt.show()
 
-    #viterbi - most likely sequence
-    q = viterbi(U,A,pis,mus,sigmas)
-    print q
+    ## viterbi - most likely sequence
+    q_train = viterbi(U, A, pis, mus, sigmas)
 
-    #classification - qst 9 - classify test data
-    
+    fig, ax = plt.subplots()
+    markers = ['o', 's', 'D', '^']
+    for k in range(K):
+        # Train data
+        ax.scatter(U[q_train == k, 0], U[q_train == k, 1], marker=markers[k], color=all_colors[k], s=50, alpha=0.8)
+        ax.scatter(mus[k, 0], mus[k, 1], marker=markers[k], color='k', s=100)
+        ax.set_title("Clustering of the train data", size=24)
+    plt.show()
 
+    ## plot p(q_t | u_1,..., u_T)
+    logalpha = compute_logalpha(V, A, pis, mus, sigmas)
+    logbeta = compute_logbeta(V, A, pis, mus, sigmas)
+    proba_smoothing = smoothing(logbeta, logalpha)
+    proba_smoothing_sample = proba_smoothing[:100, :]
 
+    f, axarr = plt.subplots(2, 2)
 
+    for i in range(2):
+        for j in range(2):
+            k = i + 2*j
+            axarr[i, j].plot(proba_smoothing_sample[:, k], color=all_colors[k], linewidth=2)
+            axarr[i, j].set_title("Class "+str(k+1))
+            axarr[i, j].set_ylim([0,1.0])
+    plt.suptitle("Smoothing: p(q_t|u_1,...,u_T) for 100 first values", size=24)
+    plt.show()
 
+    ## Most likely state
+    states = np.argmax(proba_smoothing_sample, axis=1)
+    plt.plot(range(100), states + 1)
+    plt.ylim((0.9, 4.1))
+    plt.title("Most likely state for the first 100 samples", size=24)
+
+    ## viterbi for the test data
+    q_test = viterbi(V, A, pis, mus, sigmas)
+    plt.plot(range(100), q_test[:100] + 1)
+    plt.ylim((0.9, 4.1))
+    plt.title("Most likely state for the first 100 samples with Viterbi algorithm", size=24)
+
+    print "% of difference in states: ", np.sum(q_test[:100] != states)/100, '%'
